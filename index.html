@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spesial Buat Bidadariku</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1f1c2c, #4a3b5c, #928dab);
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            padding: 40px 20px;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            max-width: 360px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h2 {
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: #ffccd5;
+        }
+        .btn-kejutan {
+            background: linear-gradient(135deg, #ff4d6d, #ff758f);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 35px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255,77,109,0.5);
+            transition: 0.3s;
+        }
+        .btn-kejutan:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255,77,109,0.8);
+        }
+        #foto-container {
+            margin-top: 25px;
+            display: none;
+            animation: fadeIn 0.9s ease-in-out forwards;
+        }
+        img {
+            max-width: 100%;
+            width: 270px;
+            height: 340px;
+            object-fit: cover;
+            border-radius: 16px;
+            border: 3px solid #ff4d6d;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .pesan-cinta {
+            margin-top: 18px;
+            font-size: 15px;
+            font-style: italic;
+            color: #ffe5ec;
+            line-height: 1.5;
+        }
+        .music-status {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #ffccd5;
+            display: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.85); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Ada tombol misterius nih...</h2>
+        <p style="font-size: 14px; color: #ddd; margin-bottom: 25px;">Coba klik tombol di bawah buat lihat siapa bidadari yang paling spesial hari ini 👇</p>
+        
+        <button class="btn-kejutan" onclick="bukaKejutan()">💖 Bidadariku 💖</button>
+
+        <div id="foto-container">
+            <!-- Ganti URL_FOTO_ISTRI dengan link foto atau nama file foto lu (misal: umma.jpg) -->
+            <img src="https://drive.google.com/file/d/1aD8-jfT7xMWap8rB230bd0Uabl-K2ahQ/view?usp=drivesdk" alt="Bidadariku">
+            <div class="pesan-cinta">"I Love You, Umma! Tetap jadi wanita hebat penyemangat abba untuk pulang lagi dari rantau, tetap jadi wanita setia ya sayang 😘😘😘 🤗 tunggu abba pulang." ✨</div>
+            <div class="music-status" id="statusMusik">🎶 Memutar alunan syahdu buat Umma...</div>
+        </div>
+    </div>
+
+    <!-- Audio Background (Ganti lagu.mp3 dengan file audio lu) -->
+    <audio id="audioRomantis" loop>
+        <source src="https://drive.google.com/file/d/1UYfErfEx25OkBztREovjrCLJs4DtCaLL/view?usp=drivesdk" type="audio/mp3">
+        Browser lu tidak mendukung pemutar audio.
+    </audio>
+
+    <script>
+        function bukaKejutan() {
+            // Tampilkan foto & pesan
+            const container = document.getElementById('foto-container');
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth' });
+
+            // Putar musik otomatis saat tombol diklik
+            const audio = document.getElementById('audioRomantis');
+            const statusMusik = document.getElementById('statusMusik');
+            
+            audio.play().then(() => {
+                statusMusik.style.display = 'block';
+            }).catch(error => {
+                console.log("Audio gagal diputar otomatis: ", error);
+            });
+        }
+    </script>
+</body>
+</html>
