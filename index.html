@@ -70,11 +70,20 @@
             color: #ffe5ec;
             line-height: 1.5;
         }
+        .music-box {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 12px;
+        }
+        audio {
+            width: 100%;
+            height: 35px;
+        }
         .music-status {
-            margin-top: 15px;
+            margin-top: 8px;
             font-size: 12px;
             color: #ffccd5;
-            display: none;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.85); }
@@ -91,18 +100,21 @@
         <button class="btn-kejutan" onclick="bukaKejutan()">💖 Bidadariku 💖</button>
 
         <div id="foto-container">
-            <!-- Link foto sudah dikonversi ke direct link Google Drive -->
+            <!-- Foto dari Google Drive -->
             <img src="https://lh3.googleusercontent.com/d/1aD8-jfT7xMWap8rB230bd0Uabl-K2ahQ" alt="Bidadariku">
+            
             <div class="pesan-cinta">"I Love You, Umma! Tetap jadi wanita hebat penyemangat abba untuk pulang lagi dari rantau, tetap jadi wanita setia ya sayang 😘😘😘 🤗 tunggu abba pulang." ✨</div>
-            <div class="music-status" id="statusMusik">🎶 Memutar alunan syahdu buat Umma...</div>
+            
+            <!-- Pemutar Musik -->
+            <div class="music-box">
+                <audio id="audioRomantis" controls loop>
+                    <source src="https://drive.usercontent.google.com/download?id=1UYfErfEx25OkBztREovjrCLJs4DtCaLL&export=download" type="audio/mp3">
+                    Browser lu tidak mendukung pemutar audio.
+                </audio>
+                <div class="music-status" id="statusMusik">🎶 Alunan syahdu buat Umma</div>
+            </div>
         </div>
     </div>
-
-    <!-- Audio Background dengan direct link Google Drive -->
-    <audio id="audioRomantis" loop>
-        <source src="https://drive.google.com/uc?export=download&id=1UYfErfEx25OkBztREovjrCLJs4DtCaLL" type="audio/mp3">
-        Browser lu tidak mendukung pemutar audio.
-    </audio>
 
     <script>
         function bukaKejutan() {
@@ -111,14 +123,15 @@
             container.style.display = 'block';
             container.scrollIntoView({ behavior: 'smooth' });
 
-            // Putar musik otomatis saat tombol diklik
+            // Putar musik secara otomatis
             const audio = document.getElementById('audioRomantis');
             const statusMusik = document.getElementById('statusMusik');
             
             audio.play().then(() => {
-                statusMusik.style.display = 'block';
+                statusMusik.innerText = "🎶 Sedang memutar lagu romantis buat Umma...";
             }).catch(error => {
-                console.log("Audio gagal diputar otomatis: ", error);
+                console.log("Autoplay dicegah browser: ", error);
+                statusMusik.innerText = "👆 Tap tombol 'Play' di atas jika musik belum berbunyi ya sayang";
             });
         }
     </script>
