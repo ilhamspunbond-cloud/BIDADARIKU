@@ -236,7 +236,9 @@
                 list.push({
                     x, y,
                     arah: Math.atan2(H / 2 - y, W / 2 - x) + (Math.random() - 0.5),
+                    kecBase: 1.4 + Math.random() * 1.8,
                     kecepatan: 1.4 + Math.random() * 1.8,
+                    buyarSampai: 0,   // selama waktu ini kupu-kupu terbang bebas (habis disentuh)
                     ukuran: 9 + Math.random() * 8,
                     fase: Math.random() * Math.PI * 2,
                     kepakan: 0.28 + Math.random() * 0.14,
@@ -329,7 +331,7 @@
             const pulsa = 1 + 0.025 * Math.sin(t / 450);
 
             kupuList.forEach(k => {
-                const bentuk = t > WAKTU_BERTEBARAN + k.delay;
+                const bentuk = t > WAKTU_BERTEBARAN + k.delay && t > k.buyarSampai;
                 let sudutGambar;
 
                 if (!bentuk) {
@@ -340,6 +342,7 @@
                         const ke = Math.atan2(H / 2 - k.y, W / 2 - k.x);
                         k.arah += selisihSudut(k.arah, ke) * 0.08;
                     }
+                    k.kecepatan += (k.kecBase - k.kecepatan) * 0.03;
                     k.x += Math.cos(k.arah) * k.kecepatan;
                     k.y += Math.sin(k.arah) * k.kecepatan;
                     k.fase += k.kepakan;
@@ -350,7 +353,7 @@
                     const ty = cy + k.target.y * setengahLebar * pulsa + Math.cos(t / 800 + k.benih) * 3;
                     const dx = tx - k.x, dy = ty - k.y;
                     const jarak = Math.hypot(dx, dy);
-                    const lama = Math.min(1, (t - WAKTU_BERTEBARAN - k.delay) / 2500);
+                    const lama = Math.min(1, (t - Math.max(WAKTU_BERTEBARAN + k.delay, k.buyarSampai)) / 2500);
                     const kuat = 0.012 + 0.03 * lama;
                     // sedikit melengkung supaya geraknya anggun, bukan lurus
                     const lengkung = Math.min(jarak, 80) * 0.02;
@@ -383,6 +386,33 @@
                 requestAnimationFrame(frame);
             }
         }
+
+        /* =========================================================
+           SENTUH KUPU-KUPU -> BUYAR, LALU BALIK NGUMPUL LAGI
+           Sentuh 1 kupu-kupu = 1-4 kabur. Geser jari / tap area luas = banyak buyar.
+           ========================================================= */
+        function kagetkan(px, py, radius) {
+            if (!animasiJalan) return;
+            const t = performance.now() - mulai;
+            kupuList.forEach(k => {
+                // hanya kupu-kupu yang sudah mulai membentuk love / sedang hinggap
+                if (t < WAKTU_BERTEBARAN + k.delay) return;
+                const d = Math.hypot(k.x - px, k.y - py);
+                if (d < radius) {
+                    k.arah = Math.atan2(k.y - py, k.x - px) + (Math.random() - 0.5) * 1.2;
+                    k.kecepatan = 4 + Math.random() * 3.5;               // kabur cepat
+                    k.buyarSampai = t + 1800 + Math.random() * 2200;     // terbang bebas 2-4 detik, lalu pulang
+                }
+            });
+        }
+        window.addEventListener('touchstart', e => {
+            for (const tc of e.touches) kagetkan(tc.clientX, tc.clientY, 85);
+        }, { passive: true });
+        window.addEventListener('touchmove', e => {
+            for (const tc of e.touches) kagetkan(tc.clientX, tc.clientY, 65);
+        }, { passive: true });
+        window.addEventListener('mousedown', e => kagetkan(e.clientX, e.clientY, 85));
+        window.addEventListener('mousemove', e => kagetkan(e.clientX, e.clientY, 55));
 
         /* =========================================================
            TOMBOL KEJUTAN
