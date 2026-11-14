@@ -17,8 +17,11 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            overflow-x: hidden;
         }
         .card {
+            position: relative;
+            z-index: 1;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(12px);
             padding: 30px;
@@ -59,6 +62,7 @@
             width: 270px;
             height: 340px;
             object-fit: cover;
+            object-position: 50% 48%;
             border-radius: 16px;
             border: 3px solid #ff4d6d;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -85,6 +89,15 @@
             font-size: 12px;
             color: #ffccd5;
         }
+        /* Kanvas kupu-kupu: menutupi layar, tidak menghalangi klik */
+        #kupu {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.85); }
             to { opacity: 1; transform: scale(1); }
@@ -96,19 +109,18 @@
     <div class="card">
         <h2>Ada tombol misterius nih...</h2>
         <p style="font-size: 14px; color: #ddd; margin-bottom: 25px;">Coba klik tombol di bawah buat lihat siapa bidadari yang paling spesial hari ini 👇</p>
-        
+
         <button class="btn-kejutan" onclick="bukaKejutan()">💖 Bidadariku 💖</button>
 
         <div id="foto-container">
             <!-- Foto dari Google Drive -->
-            <img src="https://lh3.googleusercontent.com/d/1aD8-jfT7xMWap8rB230bd0Uabl-K2ahQ" alt="Bidadariku">
-            
+            <img id="fotoUmma" src="foto.jpg" alt="Bidadariku" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1aD8-jfT7xMWap8rB230bd0Uabl-K2ahQ'">
+
             <div class="pesan-cinta">"I Love You, Umma! Tetap jadi wanita hebat penyemangat abba untuk pulang lagi dari rantau, tetap jadi wanita setia ya sayang 😘😘😘 🤗 tunggu abba pulang." ✨</div>
-            
-            <!-- Pemutar Musik -->
+
+            <!-- Pemutar Musik (src diisi lewat JavaScript saat tombol diklik) -->
             <div class="music-box">
-                <audio id="audioRomantis" controls loop>
-                    <source src="https://drive.usercontent.google.com/download?id=1UYfErfEx25OkBztREovjrCLJs4DtCaLL&export=download" type="audio/mp3">
+                <audio id="audioRomantis" controls loop preload="auto" playsinline>
                     Browser lu tidak mendukung pemutar audio.
                 </audio>
                 <div class="music-status" id="statusMusik">🎶 Alunan syahdu buat Umma</div>
@@ -116,23 +128,282 @@
         </div>
     </div>
 
+    <canvas id="kupu"></canvas>
+
     <script>
+        /* =========================================================
+           MUSIK
+           Urutan sumber lagu (dicoba satu per satu kalau gagal):
+           1) lagu.mp3  -> file di folder yang sama dengan index.html
+                           (PALING STABIL, disarankan upload mp3-nya ke sini)
+           2) link Google Drive (sering diblokir/limit, jadi cadangan saja)
+           ========================================================= */
+        const DRIVE_ID = "1UYfErfEx25OkBztREovjrCLJs4DtCaLL";
+        const sumberLagu = [
+            "lagu.mp3",
+            "https://drive.usercontent.google.com/download?id=" + DRIVE_ID + "&export=download&confirm=t",
+            "https://docs.google.com/uc?export=open&id=" + DRIVE_ID
+        ];
+        let idxLagu = 0;
+
+        const audio = document.getElementById('audioRomantis');
+        const statusMusik = document.getElementById('statusMusik');
+
+        function pasangLagu(i) {
+            audio.src = sumberLagu[i];
+            audio.load();
+        }
+
+        function mainkanMusik() {
+            const p = audio.play();
+            if (p !== undefined) {
+                p.then(() => {
+                    statusMusik.innerText = "🎶 Sedang memutar lagu romantis buat Umma...";
+                }).catch(err => {
+                    console.log("Play gagal:", err);
+                    // Kalau bukan karena sumber rusak, minta tap manual
+                    if (err && err.name === 'NotAllowedError') {
+                        statusMusik.innerText = "👆 Tap tombol Play di atas ya sayang";
+                    }
+                });
+            }
+        }
+
+        // Kalau sumber lagu gagal dimuat, otomatis coba sumber berikutnya
+        audio.addEventListener('error', () => {
+            if (idxLagu < sumberLagu.length - 1) {
+                idxLagu++;
+                pasangLagu(idxLagu);
+                mainkanMusik();
+            } else {
+                statusMusik.innerText = "⚠️ Lagu gagal dimuat. Taruh file lagu.mp3 di folder yang sama ya.";
+            }
+        });
+
+        /* =========================================================
+           KUPU-KUPU: bertebaran -> perlahan membentuk LOVE
+           ========================================================= */
+        const canvas = document.getElementById('kupu');
+        const ctx = canvas.getContext('2d');
+        const foto = document.getElementById('fotoUmma');
+        let W = 0, H = 0, DPR = 1;
+        let kupuList = [];
+        let mulai = 0;
+        let animasiJalan = false;
+        const WAKTU_BERTEBARAN = 3500;   // ms kupu-kupu terbang bebas sebelum membentuk love
+
+        function ukuranCanvas() {
+            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W * DPR;
+            canvas.height = H * DPR;
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        window.addEventListener('resize', ukuranCanvas);
+        ukuranCanvas();
+
+        // Titik-titik bentuk love (0..1 relatif ke pusat), outline luar + lapisan dalam
+        function titikLove() {
+            const pts = [];
+            const lapis = [{ skala: 1, jumlah: 78 }, { skala: 0.78, jumlah: 46 }, { skala: 0.5, jumlah: 22 }];
+            lapis.forEach(l => {
+                for (let i = 0; i < l.jumlah; i++) {
+                    const t = (i / l.jumlah) * Math.PI * 2;
+                    const x = 16 * Math.pow(Math.sin(t), 3);
+                    const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) - 2.5;
+                    pts.push({ x: (x / 16) * l.skala, y: (y / 16) * l.skala });
+                }
+            });
+            return pts;
+        }
+
+        function buatKupu() {
+            const warna = [330, 340, 350, 285, 270, 200, 45, 310]; // pink, ungu, biru, emas
+            const titik = titikLove();
+            // acak urutan target supaya kupu-kupu membentuk love secara merata
+            titik.sort(() => Math.random() - 0.5);
+            const list = [];
+            for (let i = 0; i < titik.length; i++) {
+                // muncul dari tepi layar
+                const sisi = Math.floor(Math.random() * 4);
+                let x, y;
+                if (sisi === 0) { x = Math.random() * W; y = -30; }
+                else if (sisi === 1) { x = W + 30; y = Math.random() * H; }
+                else if (sisi === 2) { x = Math.random() * W; y = H + 30; }
+                else { x = -30; y = Math.random() * H; }
+                const hue = warna[Math.floor(Math.random() * warna.length)];
+                list.push({
+                    x, y,
+                    arah: Math.atan2(H / 2 - y, W / 2 - x) + (Math.random() - 0.5),
+                    kecepatan: 1.4 + Math.random() * 1.8,
+                    ukuran: 9 + Math.random() * 8,
+                    fase: Math.random() * Math.PI * 2,
+                    kepakan: 0.28 + Math.random() * 0.14,
+                    benih: Math.random() * 100,
+                    delay: Math.random() * 1800,
+                    hue,
+                    target: titik[i]
+                });
+            }
+            return list;
+        }
+
+        function gambarKupu(k, kepak, sudut) {
+            const s = k.ukuran;
+            const lebar = 0.2 + 0.8 * Math.abs(Math.sin(k.fase)); // sayap mengepak
+            ctx.save();
+            ctx.translate(k.x, k.y);
+            ctx.rotate(sudut);
+
+            const g1 = ctx.createRadialGradient(0, 0, 1, s * 0.5, -s * 0.4, s * 1.2);
+            g1.addColorStop(0, `hsl(${k.hue}, 95%, 82%)`);
+            g1.addColorStop(0.6, `hsl(${k.hue}, 85%, 62%)`);
+            g1.addColorStop(1, `hsl(${(k.hue + 40) % 360}, 80%, 45%)`);
+            const g2 = ctx.createRadialGradient(0, 0, 1, s * 0.4, s * 0.4, s);
+            g2.addColorStop(0, `hsl(${(k.hue + 20) % 360}, 95%, 80%)`);
+            g2.addColorStop(1, `hsl(${(k.hue + 50) % 360}, 80%, 50%)`);
+
+            [1, -1].forEach(sisi => {
+                ctx.save();
+                ctx.scale(sisi * lebar, 1);
+                // sayap atas
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(s * 0.2, -s * 1.0, s * 1.2, -s * 1.1, s * 1.05, -s * 0.25);
+                ctx.bezierCurveTo(s * 0.9, s * 0.05, s * 0.3, s * 0.1, 0, 0);
+                ctx.fillStyle = g1;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.lineWidth = 0.7;
+                ctx.stroke();
+                // sayap bawah
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(s * 0.8, s * 0.05, s * 0.95, s * 0.85, s * 0.35, s * 0.75);
+                ctx.bezierCurveTo(s * 0.1, s * 0.6, 0, s * 0.3, 0, 0);
+                ctx.fillStyle = g2;
+                ctx.fill();
+                ctx.stroke();
+                // bintik sayap
+                ctx.beginPath();
+                ctx.arc(s * 0.6, -s * 0.4, s * 0.12, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // badan + antena
+            ctx.beginPath();
+            ctx.ellipse(0, 0, s * 0.07, s * 0.5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#3b2a3f';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.45);
+            ctx.quadraticCurveTo(-s * 0.2, -s * 0.8, -s * 0.3, -s * 0.85);
+            ctx.moveTo(0, -s * 0.45);
+            ctx.quadraticCurveTo(s * 0.2, -s * 0.8, s * 0.3, -s * 0.85);
+            ctx.strokeStyle = '#3b2a3f';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function selisihSudut(a, b) {
+            let d = b - a;
+            while (d > Math.PI) d -= Math.PI * 2;
+            while (d < -Math.PI) d += Math.PI * 2;
+            return d;
+        }
+
+        function frame(ts) {
+            if (!animasiJalan) return;
+            const t = ts - mulai;
+            ctx.clearRect(0, 0, W, H);
+
+            // pusat & ukuran love mengikuti posisi foto (tetap pas saat layar di-scroll)
+            const r = foto.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            const setengahLebar = Math.min(W * 0.48, 250);
+            const pulsa = 1 + 0.025 * Math.sin(t / 450);
+
+            kupuList.forEach(k => {
+                const bentuk = t > WAKTU_BERTEBARAN + k.delay;
+                let sudutGambar;
+
+                if (!bentuk) {
+                    // === Fase bertebaran: terbang bebas berkelok-kelok ===
+                    k.arah += Math.sin(t / 400 + k.benih) * 0.06 + (Math.random() - 0.5) * 0.12;
+                    // kalau keluar layar, belokkan ke tengah
+                    if (k.x < 10 || k.x > W - 10 || k.y < 10 || k.y > H - 10) {
+                        const ke = Math.atan2(H / 2 - k.y, W / 2 - k.x);
+                        k.arah += selisihSudut(k.arah, ke) * 0.08;
+                    }
+                    k.x += Math.cos(k.arah) * k.kecepatan;
+                    k.y += Math.sin(k.arah) * k.kecepatan;
+                    k.fase += k.kepakan;
+                    sudutGambar = k.arah + Math.PI / 2;
+                } else {
+                    // === Fase membentuk love: pelan-pelan menuju titiknya ===
+                    const tx = cx + k.target.x * setengahLebar * pulsa + Math.sin(t / 700 + k.benih) * 3;
+                    const ty = cy + k.target.y * setengahLebar * pulsa + Math.cos(t / 800 + k.benih) * 3;
+                    const dx = tx - k.x, dy = ty - k.y;
+                    const jarak = Math.hypot(dx, dy);
+                    const lama = Math.min(1, (t - WAKTU_BERTEBARAN - k.delay) / 2500);
+                    const kuat = 0.012 + 0.03 * lama;
+                    // sedikit melengkung supaya geraknya anggun, bukan lurus
+                    const lengkung = Math.min(jarak, 80) * 0.02;
+                    k.x += dx * kuat - dy / (jarak + 1) * lengkung * Math.sin(t / 300 + k.benih);
+                    k.y += dy * kuat + dx / (jarak + 1) * lengkung * Math.sin(t / 300 + k.benih);
+
+                    if (jarak > 14) {
+                        const ke = Math.atan2(dy, dx);
+                        k.arah += selisihSudut(k.arah, ke) * 0.12;
+                        k.fase += k.kepakan;
+                    } else {
+                        // sudah sampai: hinggap, menghadap atas, kepak pelan
+                        k.arah += selisihSudut(k.arah, -Math.PI / 2 + Math.sin(t / 900 + k.benih) * 0.25) * 0.08;
+                        k.fase += k.kepakan * 0.4;
+                    }
+                    sudutGambar = k.arah + Math.PI / 2;
+                }
+                gambarKupu(k, 0, sudutGambar);
+            });
+
+            requestAnimationFrame(frame);
+        }
+
+        function mulaiKupu() {
+            ukuranCanvas();
+            kupuList = buatKupu();
+            mulai = performance.now();
+            if (!animasiJalan) {
+                animasiJalan = true;
+                requestAnimationFrame(frame);
+            }
+        }
+
+        /* =========================================================
+           TOMBOL KEJUTAN
+           PENTING: audio.play() dipanggil PALING AWAL di dalam klik,
+           supaya browser (terutama HP) mengizinkan musik otomatis.
+           ========================================================= */
         function bukaKejutan() {
-            // Tampilkan foto & pesan
+            // 1) Musik dulu (harus langsung di dalam event klik)
+            if (!audio.src || audio.src === window.location.href) {
+                idxLagu = 0;
+                pasangLagu(idxLagu);
+            }
+            mainkanMusik();
+
+            // 2) Tampilkan foto & pesan
             const container = document.getElementById('foto-container');
             container.style.display = 'block';
-            container.scrollIntoView({ behavior: 'smooth' });
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // Putar musik secara otomatis
-            const audio = document.getElementById('audioRomantis');
-            const statusMusik = document.getElementById('statusMusik');
-            
-            audio.play().then(() => {
-                statusMusik.innerText = "🎶 Sedang memutar lagu romantis buat Umma...";
-            }).catch(error => {
-                console.log("Autoplay dicegah browser: ", error);
-                statusMusik.innerText = "👆 Tap tombol 'Play' di atas jika musik belum berbunyi ya sayang";
-            });
+            // 3) Kupu-kupu bertebaran lalu membentuk love
+            mulaiKupu();
         }
     </script>
 </body>
